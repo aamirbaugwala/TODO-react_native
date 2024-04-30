@@ -1,11 +1,16 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, StyleSheet, Text, View, TextInput, TouchableOpacity, Keyboard, ScrollView, Platform } from 'react-native';
 import Task from './components/Task';
+import CompletedTask from './components/CompletedTask';
 import AsyncStorage from '@react-native-async-storage/async-storage'; // Import AsyncStorage
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+const Stack = createNativeStackNavigator();
 
+const TaskScreen = () => {
+  const navigation = useNavigation();
 
-export default function App() {
   const [task, setTask] = useState();
   const [taskItems, setTaskItems] = useState([]);
   const [completedTaskItems, setCompletedTaskItems] = useState([]);
@@ -15,12 +20,10 @@ export default function App() {
       try {
         const savedTasks = await AsyncStorage.getItem('tasks');
         if (savedTasks) {
-          console.log("tasks found in localstorage: ",savedTasks);
           setTaskItems(JSON.parse(savedTasks));
         }
       } catch (error) {
         console.error('Error loading tasks:', error);
-        // Handle error, such as showing an error message to the user or resetting the taskItems state
       }
     };
   
@@ -28,29 +31,24 @@ export default function App() {
       try {
         const savedCompletedTasks = await AsyncStorage.getItem('completedTasks');
         if (savedCompletedTasks) {
-          console.log("completed tasks found in localstorage: ",savedCompletedTasks);
           setCompletedTaskItems(JSON.parse(savedCompletedTasks));
         }
       } catch (error) {
         console.error('Error loading completed tasks:', error);
-        // Handle error, such as showing an error message to the user or resetting the completedTaskItems state
       }
     };
   
     loadTasks();
     loadCompletedTasks();
   }, []);
-  
 
-    // Save tasks to local storage whenever taskItems state changes
-    useEffect(() => {
-      AsyncStorage.setItem('tasks', JSON.stringify(taskItems));
-    }, [taskItems]);
+  useEffect(() => {
+    AsyncStorage.setItem('tasks', JSON.stringify(taskItems));
+  }, [taskItems]);
   
-    // Save completed tasks to local storage whenever completedTaskItems state changes
-    useEffect(() => {
-      AsyncStorage.setItem('completedTasks', JSON.stringify(completedTaskItems));
-    }, [completedTaskItems]);
+  useEffect(() => {
+    AsyncStorage.setItem('completedTasks', JSON.stringify(completedTaskItems));
+  }, [completedTaskItems]);
   
   const handleAddTask = () => {
     Keyboard.dismiss();
@@ -79,61 +77,33 @@ export default function App() {
     setCompletedTaskItems([...completedTaskItems, completedTask]);
   }
   
-
   return (
     <View style={styles.container}>
-      {/* Added this scroll view to enable scrolling when list gets longer than the page */}
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1
         }}
         keyboardShouldPersistTaps='handled'
       >
-
-      {/* Today's Tasks */}
-      <View style={styles.tasksWrapper}>
-        <Text style={styles.sectionTitle}>Today's tasks</Text>
-        <View style={styles.items}>
-          {/* This is where the tasks will go! */}
-          {
-            taskItems.map((item, index) => {
-              return (
-                <Task
+        <View style={styles.tasksWrapper}>
+          <Text style={styles.sectionTitle}>Today's tasks</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('CompletedTasksScreen')}>
+        <Text style={{fontSize:15,fontWeight:'bold',textDecorationLine:'underline'}}>View completed Tasks</Text>
+      </TouchableOpacity>
+          <View style={styles.items}>
+            {taskItems.map((item, index) => (
+              <Task
                 key={index}
                 text={item}
-                onDelete={() => DeleteTask(index)} // Pass delete handler
-                onComplete={() => completeTask(index)}
+                onDelete={() => DeleteTask(index)}
+                onComplete={() => completeTask(index)} // Add onComplete handler
               />
-              );
-            })
-          }
-        </View>
-      </View>
+            ))}
+          </View>
 
-      {/* completed task section */}
-      <View style={styles.completedTasksWrapper}>
-        <Text style={styles.sectionTitle}>Completed Tasks</Text>
-        <View style={styles.items}>
-          {
-            completedTaskItems.map((item, index) => {
- 
-              return (
-              <Task
-                  key={index}
-                  text={item}
-                  onDelete={() => DeleteCompletedTask(index)}
-              />
-
-              );
-            })
-          }
         </View>
-      </View>
-        
       </ScrollView>
 
-      {/* Write a task */}
-      {/* Uses a keyboard avoiding view which ensures the keyboard does not cover the items on screen */}
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.writeTaskWrapper}
@@ -146,7 +116,74 @@ export default function App() {
         </TouchableOpacity>
       </KeyboardAvoidingView>
       
+
     </View>
+  );
+}
+
+
+const CompletedTasksScreen = () => {
+  const [completedTaskItems, setCompletedTaskItems] = useState([]);
+
+  useEffect(() => {
+    const loadCompletedTasks = async () => {
+      try {
+        const savedCompletedTasks = await AsyncStorage.getItem('completedTasks');
+        if (savedCompletedTasks) {
+          setCompletedTaskItems(JSON.parse(savedCompletedTasks));
+        }
+      } catch (error) {
+        console.error('Error loading completed tasks:', error);
+      }
+    };
+  
+    loadCompletedTasks();
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem('completedTasks', JSON.stringify(completedTaskItems));
+  }, [completedTaskItems]);
+  
+  const DeleteCompletedTask = (index) => {
+    let itemsCopy = [...completedTaskItems];
+    itemsCopy.splice(index, 1);
+    setCompletedTaskItems(itemsCopy)
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView 
+        contentContainerStyle={{
+          flexGrow: 1,
+          
+        }}
+        keyboardShouldPersistTaps='handled'
+      >
+        <View style={styles.tasksWrapper}>
+          <Text style={styles.sectionTitle}>Completed Tasks</Text>
+          <View style={styles.items}>
+            {completedTaskItems.map((item, index) => (
+              <CompletedTask
+                key={index}
+                text={item}
+                onDelete={() => DeleteCompletedTask(index)}
+              />
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const App = () => {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="TaskScreen" component={TaskScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="CompletedTasksScreen" component={CompletedTasksScreen} options={{ title: 'Completed Tasks' }} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
@@ -154,23 +191,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#E8EAED',
-
   },
-  completedTasksWrapper: {
-    paddingTop: 20,
-    paddingHorizontal: 20,
-  },
-
   tasksWrapper: {
-    paddingTop: 80, // Add padding to the top
-    paddingHorizontal: 20, // Add horizontal padding
+    paddingTop: 80,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
     fontSize: 30,
     fontWeight: 'bold',
   },
   items: {
-    marginTop: 30, // Add margin to the top of items
+    marginTop: 30,
   },
   writeTaskWrapper: {
     position: 'absolute',
@@ -179,7 +210,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center'
-
   },
   input: {
     paddingVertical: 15,
@@ -200,9 +230,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderColor: 'C0C0C0',
     borderWidth: 1,
-    
   },
   addText: {
     fontSize: 25,
+    
   }
 });
+
+export default App;
